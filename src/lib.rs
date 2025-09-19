@@ -374,7 +374,7 @@ struct Downloader {
     /// Contect needed for the per-node tasks
     ctx: Arc<Ctx>,
     /// Futures for currently active downloads
-    tasks: FuturesUnordered<Pin<Box<dyn Future<Output = (NodeId, ChunkRanges, Option<anyhow::Result<()>>)> + Send>>>,
+    tasks: FuturesUnordered<Pin<Box<dyn Future<Output = (NodeId, ChunkRanges, Option<anyhow::Result<()>>)>>>>,
     /// Unclaimed chunks that are not yet assigned to any download
     unclaimed: ChunkRanges,
     /// Mapping from node id to hash, to know what do download

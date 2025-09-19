@@ -1,9 +1,5 @@
 use std::{
-    cmp::Reverse,
-    collections::HashMap,
-    ops::DerefMut,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    cmp::Reverse, collections::HashMap, ops::DerefMut, pin::Pin, sync::{Arc, Mutex}, time::{Duration, Instant}
 };
 
 use anyhow::{Context, Result, bail};
@@ -378,7 +374,7 @@ struct Downloader {
     /// Contect needed for the per-node tasks
     ctx: Arc<Ctx>,
     /// Futures for currently active downloads
-    tasks: FuturesUnordered<Boxed<(NodeId, ChunkRanges, Option<anyhow::Result<()>>)>>,
+    tasks: FuturesUnordered<Pin<Box<dyn Future<Output = (NodeId, ChunkRanges, Option<anyhow::Result<()>>)> + Send>>>,
     /// Unclaimed chunks that are not yet assigned to any download
     unclaimed: ChunkRanges,
     /// Mapping from node id to hash, to know what do download

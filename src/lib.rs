@@ -71,10 +71,11 @@ pub struct Config {
     pub parallelism: usize,
 }
 
-pub async fn sync(
+pub async fn sync<'a>(
     blobs: Vec<(NodeAddr, Hash)>,
     config: Config,
     verbose: u8,
+    _marker: &'a PhantomData<()>
 ) -> Result<(Vec<u8>, HashMap<NodeId, PerNodeStats>)> {
     let block_size = ChunkNum(config.block_size);
     // if there are multiple hashes for one node id, we will just choose the last one!
@@ -130,10 +131,9 @@ pub async fn sync(
             println!("Node{id} is not reachable: {:?}", r);
         }
     }
-    let _marker = Default::default();
 
     let size = usize::try_from(size).context("Size is too large to fit into a usize")?;
-    let downloader = Downloader::new(hashes, size, pool, &latency, block_size, config.parallelism, &_marker);
+    let downloader = Downloader::new(hashes, size, pool, &latency, block_size, config.parallelism, _marker);
     let (res, stats) = downloader
         .run()
         .await

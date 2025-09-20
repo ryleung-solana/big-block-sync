@@ -1,7 +1,9 @@
 use std::{
     cmp::Reverse,
     collections::HashMap,
+    marker::PhantomData,
     ops::DerefMut,
+    rc::Rc,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -128,8 +130,10 @@ pub async fn sync(
             println!("Node{id} is not reachable: {:?}", r);
         }
     }
+    let _marker = Default::default();
+
     let size = usize::try_from(size).context("Size is too large to fit into a usize")?;
-    let downloader = Downloader::new(hashes, size, pool, &latency, block_size, config.parallelism);
+    let downloader = Downloader::new(hashes, size, pool, &latency, block_size, config.parallelism, &_marker);
     let (res, stats) = downloader
         .run()
         .await
@@ -374,7 +378,7 @@ pub fn print_bitfields(stats: &HashMap<NodeId, PerNodeStats>, size: usize) {
     }
 }
 
-struct Downloader {
+struct Downloader<'a> {
     /// Contect needed for the per-node tasks
     ctx: Arc<Ctx>,
     /// Futures for currently active downloads
@@ -392,9 +396,17 @@ struct Downloader {
     block_size: ChunkNum,
     /// Maximum number of concurrent downloads
     parallelism: usize,
+
+    // hack because apparently !Send and !Sync are not yet fully implemented
+    phantom: PhantomData<Rc<()>>,
+
+    _marker: &'a PhantomData<()>,
 }
 
-impl Downloader {
+unsafe impl<'a> Send for Downloader<'a> {}
+unsafe impl<'a> Sync for Downloader<'a> {}
+
+impl<'a> Downloader<'a> {
     fn new(
         hashes: HashMap<NodeId, Hash>,
         size: usize,
@@ -402,6 +414,7 @@ impl Downloader {
         latency: &HashMap<NodeId, Duration>,
         block_size: ChunkNum,
         parallelism: usize,
+        _marker: &'a PhantomData<()>,
     ) -> Self {
         let target = Target::new(size);
         let unclaimed = target.missing.clone();
@@ -428,6 +441,8 @@ impl Downloader {
                 .collect(),
             block_size,
             parallelism,
+            phantom: Default::default(),
+            _marker,
         }
     }
 

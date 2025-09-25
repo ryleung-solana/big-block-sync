@@ -18,3 +18,7 @@ tracing = "0.1.41"
 clap = { version = "4.5.45", features = ["derive"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 hex = "0.4.3"
+
+[lints.clippy]
+future_not_send = "deny"
+future_not_sync = "deny"

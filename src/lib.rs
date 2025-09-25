@@ -27,6 +27,7 @@ use tracing::{info, warn};
 ///
 /// We get the size just so we have timings, then get the latency from the
 /// endpoint.
+#[warn(clippy::future_not_send)]
 async fn get_latency_and_size(
     pool: &ConnectionPool,
     node_id: &NodeId,
@@ -42,9 +43,10 @@ async fn get_latency_and_size(
 ///
 /// This gives us some initial estimate of the connection quality and also will
 /// immediately filter out nodes that are not reachable.
+#[warn(clippy::future_not_send)]
 async fn get_latencies_and_sizes(
-    infos: &HashMap<NodeId, Hash>,
-    pool: &ConnectionPool,
+    infos: Arc<HashMap<NodeId, Hash>>,
+    pool: Arc<ConnectionPool>,
     parallelism: usize,
 ) -> HashMap<NodeId, Result<(Duration, u64)>> {
     stream::iter(infos.iter().clone())
@@ -69,6 +71,7 @@ pub struct Config {
     pub parallelism: usize,
 }
 
+#[warn(clippy::future_not_send)]
 pub async fn sync(
     blobs: Vec<(NodeAddr, Hash)>,
     config: Config,
@@ -76,10 +79,12 @@ pub async fn sync(
 ) -> Result<(Vec<u8>, HashMap<NodeId, PerNodeStats>)> {
     let block_size = ChunkNum(config.block_size);
     // if there are multiple hashes for one node id, we will just choose the last one!
-    let hashes = blobs
-        .iter()
-        .map(|(addr, hash)| (addr.node_id, *hash))
-        .collect::<HashMap<_, _>>();
+    let hashes = Arc::new(
+        blobs
+            .iter()
+            .map(|(addr, hash)| (addr.node_id, *hash))
+            .collect::<HashMap<_, _>>(),
+    );
     // we take all addr info. If there are multiple, they will be combined except for
     // the relay url, which will be the last one.
     let addrs = blobs
@@ -97,9 +102,14 @@ pub async fn sync(
         .bind()
         .await?;
     // create a connection pool
-    let pool = ConnectionPool::new(endpoint.clone(), iroh_blobs::ALPN, Default::default());
+    let pool = Arc::new(ConnectionPool::new(
+        endpoint.clone(),
+        iroh_blobs::ALPN,
+        Default::default(),
+    ));
     // get latency and size for all nodes. This should be very quick!
-    let latencies_and_sizes = get_latencies_and_sizes(&hashes, &pool, config.parallelism).await;
+    let latencies_and_sizes =
+        get_latencies_and_sizes(hashes.clone(), pool.clone(), config.parallelism).await;
     let sizes = latencies_and_sizes
         .iter()
         .filter_map(|(_, res)| res.as_ref().ok().map(|(_, s)| *s))
@@ -382,7 +392,7 @@ struct Downloader {
     /// Unclaimed chunks that are not yet assigned to any download
     unclaimed: ChunkRanges,
     /// Mapping from node id to hash, to know what do download
-    hashes: HashMap<NodeId, Hash>,
+    hashes: Arc<HashMap<NodeId, Hash>>,
     /// Per node statistics. Note that this will also be filled for nodes we never
     /// talked to, using the initial latency.
     stats: HashMap<NodeId, PerNodeStats>,
@@ -396,9 +406,9 @@ struct Downloader {
 
 impl Downloader {
     fn new(
-        hashes: HashMap<NodeId, Hash>,
+        hashes: Arc<HashMap<NodeId, Hash>>,
         size: usize,
-        pool: ConnectionPool,
+        pool: Arc<ConnectionPool>,
         latency: &HashMap<NodeId, Duration>,
         block_size: ChunkNum,
         parallelism: usize,
@@ -508,6 +518,8 @@ impl Downloader {
     ///
     /// The latter will only happen as the download nears the end, so it is called
     /// finish mode.
+    ///
+    #[warn(clippy::future_not_send)]
     async fn claim_and_spawn(&mut self) -> Result<()> {
         let chunk_size = self.block_size;
         let claim = claim(&self.unclaimed, chunk_size);
@@ -570,6 +582,7 @@ impl Downloader {
         Ok(())
     }
 
+    #[warn(clippy::future_not_send)]
     async fn run(mut self) -> Result<(Vec<u8>, HashMap<NodeId, PerNodeStats>)> {
         let chunk_size = self.block_size;
         let initial = self.free_by_quality(self.parallelism);
@@ -612,7 +625,7 @@ impl Downloader {
 
 struct Ctx {
     target: Mutex<Target>,
-    pool: ConnectionPool,
+    pool: Arc<ConnectionPool>,
 }
 
 impl Ctx {
@@ -623,6 +636,7 @@ impl Ctx {
     ///
     /// A result of None indicates that the task has been killed. This should not
     /// count towards errors.
+    #[warn(clippy::future_not_send)]
     async fn download_range(
         self: Arc<Self>,
         id: NodeId,
@@ -645,6 +659,7 @@ impl Ctx {
         (id, ranges.clone(), result)
     }
 
+    #[warn(clippy::future_not_send)]
     async fn download_range_impl(&self, id: NodeId, hash: Hash, ranges: ChunkRanges) -> Result<()> {
         let connection = self
             .pool

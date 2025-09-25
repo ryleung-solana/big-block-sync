@@ -31,7 +31,7 @@ use tracing::{info, warn};
 async fn get_latency_and_size(
     pool: Arc<ConnectionPool>,
     node_id: NodeId,
-    hash: Hash,
+    hash: &Hash,
 ) -> Result<(Duration, u64)> {
     let conn = pool.get_or_connect(node_id).await?;
     let (size, _stats) = iroh_blobs::get::request::get_verified_size(&conn, &hash).await?;
@@ -54,7 +54,7 @@ async fn get_latencies_and_sizes(
         .map(|(id, hash)| {
             let pool = pool.clone();
             async move {
-                match get_latency_and_size(pool, id, hash).await {
+                match get_latency_and_size(pool, id, &hash).await {
                     Ok((latency, size)) => (id, Ok((latency, size))),
                     Err(e) => (id, Err(e)),
                 }

@@ -49,13 +49,14 @@ async fn get_latencies_and_sizes(
     pool: Arc<ConnectionPool>,
     parallelism: usize,
 ) -> HashMap<NodeId, Result<(Duration, u64)>> {
-    stream::iter(infos.iter().clone())
+    let copy = infos.iter().map(|(id, hash)| (id.clone(), hash.clone())).collect::<HashMap<_, _>>();
+    stream::iter(copy.into_iter())
         .map(|(id, hash)| {
             let pool = pool.clone();
             async move {
-                match get_latency_and_size(pool, id.clone(), hash.clone()).await {
-                    Ok((latency, size)) => (*id, Ok((latency, size))),
-                    Err(e) => (*id, Err(e)),
+                match get_latency_and_size(pool, id, hash).await {
+                    Ok((latency, size)) => (id, Ok((latency, size))),
+                    Err(e) => (id, Err(e)),
                 }
             }
         })

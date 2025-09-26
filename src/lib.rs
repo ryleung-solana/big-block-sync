@@ -27,7 +27,6 @@ use tracing::{info, warn};
 ///
 /// We get the size just so we have timings, then get the latency from the
 /// endpoint.
-#[warn(clippy::future_not_send)]
 async fn get_latency_and_size(
     pool: Arc<ConnectionPool>,
     node_id: NodeId,
@@ -43,7 +42,6 @@ async fn get_latency_and_size(
 ///
 /// This gives us some initial estimate of the connection quality and also will
 /// immediately filter out nodes that are not reachable.
-#[warn(clippy::future_not_send)]
 async fn get_latencies_and_sizes(
     infos: Arc<HashMap<NodeId, Hash>>,
     pool: Arc<ConnectionPool>,
@@ -75,7 +73,6 @@ pub struct Config {
     pub parallelism: usize,
 }
 
-#[warn(clippy::future_not_send)]
 pub async fn sync(
     blobs: Vec<(NodeAddr, Hash)>,
     config: Config,
@@ -523,7 +520,6 @@ impl Downloader {
     /// The latter will only happen as the download nears the end, so it is called
     /// finish mode.
     ///
-    #[warn(clippy::future_not_send)]
     async fn claim_and_spawn(&mut self) -> Result<()> {
         let chunk_size = self.block_size;
         let claim = claim(&self.unclaimed, chunk_size);
@@ -586,7 +582,6 @@ impl Downloader {
         Ok(())
     }
 
-    #[warn(clippy::future_not_send)]
     async fn run(mut self) -> Result<(Vec<u8>, HashMap<NodeId, PerNodeStats>)> {
         let chunk_size = self.block_size;
         let initial = self.free_by_quality(self.parallelism);
@@ -640,7 +635,6 @@ impl Ctx {
     ///
     /// A result of None indicates that the task has been killed. This should not
     /// count towards errors.
-    #[warn(clippy::future_not_send)]
     async fn download_range(
         self: Arc<Self>,
         id: NodeId,
@@ -663,7 +657,6 @@ impl Ctx {
         (id, ranges.clone(), result)
     }
 
-    #[warn(clippy::future_not_send)]
     async fn download_range_impl(&self, id: NodeId, hash: Hash, ranges: ChunkRanges) -> Result<()> {
         let connection = self
             .pool

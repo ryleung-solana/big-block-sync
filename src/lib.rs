@@ -49,7 +49,10 @@ async fn get_latencies_and_sizes(
     pool: Arc<ConnectionPool>,
     parallelism: usize,
 ) -> HashMap<NodeId, Result<(Duration, u64)>> {
-    let copy = infos.iter().map(|(id, hash)| (id.clone(), hash.clone())).collect::<HashMap<_, _>>();
+    let copy = infos
+        .iter()
+        .map(|(id, hash)| (id.clone(), hash.clone()))
+        .collect::<Vec<_>>();
     stream::iter(copy.into_iter())
         .map(|(id, hash)| {
             let pool = pool.clone();
